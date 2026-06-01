@@ -1,0 +1,51 @@
+env: dev
+catalog: dbw_fintrust_platform_dev
+
+schemas:
+  bronze: bronze
+  silver: silver
+  gold: gold
+  audit: audit
+  quarantine: quarantine
+  reference: reference
+  ml_features: ml_features
+
+storage:
+  landing_base_path: /Volumes/dbw_fintrust_platform_dev/reference/landing
+  archive_base_path: /Volumes/dbw_fintrust_platform_dev/reference/archive
+  checkpoint_base_path: /Volumes/dbw_fintrust_platform_dev/audit/checkpoints
+
+processing:
+  default_write_mode: append
+  enable_data_quality: true
+  enable_pii_masking: true
+
+sources:
+  transactions_stream:
+    type: kafka
+    topic: fintrust-transactions
+    bootstrap_servers: evhns-fintrust-dev.servicebus.windows.net:9093
+    connection_string_secret_scope: fintrust-secrets
+    connection_string_secret_key: eventhub-connection-string
+    checkpoint_name: transactions_stream
+
+  customers_file:
+    type: file
+    landing_path: customers/
+    archive_path: customers/
+    file_format: csv
+    checkpoint_name: customers_bronze_autoloader
+
+  merchants_file:
+    type: file
+    landing_path: merchants/
+    archive_path: merchants/
+    file_format: csv
+    checkpoint_name: merchants_bronze_autoloader
+
+  exchange_rates_file:
+    type: file
+    landing_path: exchange_rates/
+    archive_path: exchange_rates/
+    file_format: csv
+    checkpoint_name: exchange_rates_bronze_autoloader

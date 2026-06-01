@@ -1,0 +1,12 @@
+{
+    "jupyter.interactiveWindow.cellMarker.codeRegex": "^# COMMAND ----------|^# Databricks notebook source|^(#\\s*%%|#\\s*\\<codecell\\>|#\\s*In\\[\\d*?\\]|#\\s*In\\[ \\])",
+    "jupyter.interactiveWindow.cellMarker.default": "# COMMAND ----------",
+    "databricks.host": "https://adb-7405612030947054.14.azuredatabricks.net",
+    "databricks.defaultClusterId": "0530-170259-d9vanesa",
+    "python.defaultInterpreterPath": "/Users/maxruzimov/Downloads/finrisk-databricks-platform/fintrust-risk-platform/.venv/bin/python3.12",
+    "python.terminal.activateEnvironment": true,
+    "databricks.python.envFile": "${workspaceFolder}/.venv",
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportUndefinedVariable": "none"
+    }
+}

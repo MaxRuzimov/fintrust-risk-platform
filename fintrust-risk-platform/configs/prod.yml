@@ -1,0 +1,51 @@
+env: prod
+catalog: fintrust_prod
+
+schemas:
+  bronze: bronze
+  silver: silver
+  gold: gold
+  ml_features: ml_features
+  audit: audit
+  quarantine: quarantine
+  reference: reference
+
+storage:
+  base_path: /Volumes/fintrust_prod/landing/files
+  checkpoint_path: /Volumes/fintrust_prod/audit/checkpoints
+
+processing:
+  default_write_mode: append
+  enable_data_quality: true
+  enable_pii_masking: true
+
+sources:
+  transactions_stream:
+    type: kafka
+    topic: fintrust.transactions
+    bootstrap_servers_secret: kafka-bootstrap-servers
+    checkpoint_name: transactions_stream
+
+  customers_db:
+    type: jdbc
+    database: fintrust_core
+    table: public.customers
+    jdbc_url_secret: customers-jdbc-url
+    username_secret: customers-db-username
+    password_secret: customers-db-password
+
+  merchants_sftp:
+    type: sftp
+    landing_path: merchants/daily/
+    file_format: csv
+
+  fraud_alerts_api:
+    type: api
+    endpoint_name: fraud_alerts
+    base_url_secret: fraud-api-base-url
+    api_key_secret: fraud-api-key
+
+  risk_rules:
+    type: reference_table
+    database: fintrust_reference
+    table: public.risk_rules

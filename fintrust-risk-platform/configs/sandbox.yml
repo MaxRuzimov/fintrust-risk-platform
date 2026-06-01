@@ -1,0 +1,42 @@
+env: sandbox
+catalog: fintrust_sandbox
+
+schemas:
+  bronze: bronze
+  silver: silver
+  gold: gold
+  ml_features: ml_features
+  audit: audit
+  quarantine: quarantine
+  reference: reference
+
+storage:
+  base_path: /Volumes/fintrust_sandbox/landing/files
+  checkpoint_path: /Volumes/fintrust_sandbox/audit/checkpoints
+
+processing:
+  default_write_mode: append
+  enable_data_quality: false
+  enable_pii_masking: true
+
+sources:
+  transactions_stream:
+    type: kafka
+    topic: fintrust.transactions
+    checkpoint_name: transactions_stream
+
+  customers_db:
+    type: jdbc
+    table: public.customers
+
+  merchants_sftp:
+    type: sftp
+    path: merchants/daily/
+
+  fraud_alerts_api:
+    type: api
+    endpoint_name: fraud_alerts
+
+  risk_rules:
+    type: reference_table
+    table: risk_rules

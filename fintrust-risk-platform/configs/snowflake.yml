@@ -1,0 +1,8 @@
+snowflake:
+  account_secret: snowflake-account
+  user_secret: snowflake-user
+  password_secret: snowflake-password
+  warehouse: FINTRUST_WH
+  database: FINTRUST_ANALYTICS
+  schema: RISK_MART
+  role: FINTRUST_DATA_ENGINEER

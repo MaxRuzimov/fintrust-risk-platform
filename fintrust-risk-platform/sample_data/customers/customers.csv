@@ -1,0 +1,5 @@
+customer_id,customer_name,customer_country,customer_risk_tier,kyc_status,effective_date
+C001,John Smith,CA,LOW,VERIFIED,2026-05-30
+C002,Sara Lee,CA,MEDIUM,VERIFIED,2026-05-30
+C003,Ali Khan,US,HIGH,PENDING,2026-05-30
+C004,Maria Garcia,CA,HIGH,VERIFIED,2026-05-30
