@@ -1,7 +1,9 @@
 .venv/
 __pycache__/
 *.pyc
+.DS_Store
+__MACOSX/
+.env
 .databricks/
 *.egg-info/
 dist/
-.env
