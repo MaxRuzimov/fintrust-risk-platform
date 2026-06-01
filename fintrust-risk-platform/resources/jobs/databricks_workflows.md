@@ -35,5 +35,11 @@ Workflow: fintrust_gold_refresh
 Task 1:
 03_transform_gold/01_transactions_enriched.py
 
+Task 2: 
+03_transform_gold/02_daily_transaction_summary.py
+
+Task 3: 
+03_transform_gold/03_fraud_risk_summary.py
+
 Task 2:
 04_quality_audit/01_reconciliation_checks.py
