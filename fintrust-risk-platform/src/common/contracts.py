@@ -32,3 +32,12 @@ EXCHANGE_RATES_CONTRACT = {
     "ingestion_timestamp": "timestamp",
     "load_id": "string",
 }
+
+FRAUD_ALERTS_CONTRACT = {
+    "alert_id": "string",
+    "customer_id": "string",
+    "merchant_id": "string",
+    "alert_type": "string",
+    "alert_severity": "string",
+    "alert_timestamp": "timestamp",
+}

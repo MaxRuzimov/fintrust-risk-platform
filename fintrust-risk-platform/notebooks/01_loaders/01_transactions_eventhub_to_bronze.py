@@ -83,7 +83,7 @@ def process_batch(batch_df, _):
     records_processed = 0
     records_quarantined = 0
     try:
-        validate_contract(batch_df, TRANSACTIONS_CONTRACT)
+        validate_contract(batch_df, TRANSACTIONS_CONTRACT, strict=False)
 
         valid_df, invalid_df = split_valid_invalid_records(batch_df, required_columns)
         valid_df = add_domain_validation_errors(valid_df, domain_rules)

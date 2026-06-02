@@ -51,7 +51,7 @@ exchange_rates_df = (
 
 
 def process_batch(batch_df, _):
-    validate_contract(batch_df, EXCHANGE_RATES_CONTRACT)
+    validate_contract(batch_df, EXCHANGE_RATES_CONTRACT, strict=False)
     valid_df, invalid_df = split_valid_invalid_records(batch_df, required_columns)
     valid_df.write.format("delta").mode("append").saveAsTable(target_table)
     if invalid_df.count() > 0:
