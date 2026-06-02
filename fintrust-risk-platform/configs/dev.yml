@@ -49,3 +49,10 @@ sources:
     archive_path: exchange_rates/
     file_format: csv
     checkpoint_name: exchange_rates_bronze_autoloader
+
+  fraud_alerts_file:
+    type: file
+    landing_path: fraud_alerts/
+    archive_path: fraud_alerts/
+    file_format: csv
+    checkpoint_name: fraud_alerts_bronze_autoloader

@@ -8,7 +8,7 @@ config = load_config(env)
 recon_table = table_name(config, "audit", "reconciliation_results")
 
 spark.sql(f"""
-CREATE TABLE IF NOT EXISTS {recon_table} (
+CREATE OR REPLACE TABLE {recon_table} (
     pipeline_name STRING,
     layer STRING,
     source_count BIGINT,

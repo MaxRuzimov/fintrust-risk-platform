@@ -5,9 +5,10 @@ dbutils.widgets.text("env", "dev")
 env = dbutils.widgets.get("env")
 
 config = load_config(env)
-transactions_enriched     = table_name(config, "gold", "transactions_enriched")
-daily_transaction_summary = table_name(config, "gold", "daily_transaction_summary")
-fraud_risk_summary        = table_name(config, "gold", "fraud_risk_summary")
+transactions_enriched           = table_name(config, "gold", "transactions_enriched")
+daily_transaction_summary       = table_name(config, "gold", "daily_transaction_summary")
+fraud_risk_summary              = table_name(config, "gold", "fraud_risk_summary")
+transactions_with_fraud_alerts  = table_name(config, "gold", "transactions_with_fraud_alerts")
 
 spark.sql(f"""
 CREATE TABLE IF NOT EXISTS {transactions_enriched} (
@@ -47,6 +48,23 @@ CREATE TABLE IF NOT EXISTS {fraud_risk_summary} (
     risk_level STRING,
     transaction_count BIGINT,
     total_amount_cad DOUBLE,
+    processed_at TIMESTAMP
+)
+USING DELTA
+""")
+
+spark.sql(f"""
+CREATE TABLE IF NOT EXISTS {transactions_with_fraud_alerts} (
+    transaction_id STRING,
+    customer_id STRING,
+    merchant_id STRING,
+    amount DOUBLE,
+    currency STRING,
+    transaction_timestamp TIMESTAMP,
+    alert_id STRING,
+    alert_type STRING,
+    alert_severity STRING,
+    alert_timestamp TIMESTAMP,
     processed_at TIMESTAMP
 )
 USING DELTA

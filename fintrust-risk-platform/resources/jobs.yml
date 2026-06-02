@@ -44,6 +44,46 @@ resources:
             base_parameters:
               env: dev
 
+    fintrust_streaming_transactions:
+      name: fintrust_streaming_transactions
+      max_concurrent_runs: 1
+      tasks:
+        - task_key: transactions_eventhub_to_bronze
+          existing_cluster_id: 0530-170259-d9vanesa
+          notebook_task:
+            notebook_path: ../notebooks/01_loaders/01_transactions_eventhub_to_bronze.py
+            base_parameters:
+              env: dev
+
+        - task_key: transactions_to_silver
+          existing_cluster_id: 0530-170259-d9vanesa
+          notebook_task:
+            notebook_path: ../notebooks/02_transform_silver/01_transactions_to_silver.py
+            base_parameters:
+              env: dev
+
+    fintrust_fraud_alerts_stream:
+      name: fintrust_fraud_alerts_stream
+      max_concurrent_runs: 1
+      tasks:
+        - task_key: fraud_alerts_to_bronze
+          existing_cluster_id: 0530-170259-d9vanesa
+          notebook_task:
+            notebook_path: ../notebooks/01_loaders/04_fraud_alerts_autoloader_to_bronze.py
+            base_parameters:
+              env: dev
+
+    fintrust_transactions_fraud_stream:
+      name: fintrust_transactions_fraud_stream
+      max_concurrent_runs: 1
+      tasks:
+        - task_key: transactions_with_fraud_alerts
+          existing_cluster_id: 0530-170259-d9vanesa
+          notebook_task:
+            notebook_path: ../notebooks/03_transform_gold/04_transactions_with_fraud_alerts.py
+            base_parameters:
+              env: dev
+
     fintrust_gold_reporting:
       name: fintrust_gold_reporting
       tasks:
