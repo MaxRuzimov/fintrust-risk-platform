@@ -1,6 +1,8 @@
 # Databricks notebook source
-
 from pyspark.sql.functions import current_timestamp
+from src.common.config import load_config, table_name
+
+dbutils.widgets.text("env", "dev")
 dbutils.widgets.text("load_id", "")
 dbutils.widgets.text("pipeline_name", "")
 dbutils.widgets.text("source_name", "")
@@ -10,8 +12,10 @@ dbutils.widgets.text("record_count", "0")
 dbutils.widgets.text("status", "SUCCESS")
 dbutils.widgets.text("error_message", "")
 
-catalog     = "dbw_fintrust_platform_dev"
-audit_table = f"`{catalog}`.`audit`.`batch_load_history`"
+env = dbutils.widgets.get("env")
+
+config = load_config(env)
+audit_table = table_name(config, "audit", "batch_load_history")
 
 audit_df = spark.createDataFrame(
     [(
@@ -24,16 +28,7 @@ audit_df = spark.createDataFrame(
         dbutils.widgets.get("status"),
         dbutils.widgets.get("error_message")
     )],
-    [
-        "load_id",
-        "pipeline_name",
-        "source_name",
-        "source_file",
-        "target_table",
-        "record_count",
-        "status",
-        "error_message"
-    ]
+    ["load_id", "pipeline_name", "source_name", "source_file", "target_table", "record_count", "status", "error_message"]
 ).withColumn("load_timestamp", current_timestamp())
 
 audit_df.write.format("delta").mode("append").saveAsTable(audit_table)

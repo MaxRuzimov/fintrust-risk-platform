@@ -1,0 +1,70 @@
+resources:
+  jobs:
+    fintrust_customer_master:
+      name: fintrust_customer_master
+      tasks:
+        - task_key: customers_autoloader_to_bronze
+          notebook_task:
+            notebook_path: ../notebooks/01_loaders/00_autoloader_generic.py
+            base_parameters:
+              env: dev
+              source_name: customers
+
+        - task_key: customers_scd2
+          depends_on:
+            - task_key: customers_autoloader_to_bronze
+          notebook_task:
+            notebook_path: ../notebooks/02_transform_silver/02_customers_scd2.py
+            base_parameters:
+              env: dev
+
+        - task_key: reconciliation_checks
+          depends_on:
+            - task_key: customers_scd2
+          notebook_task:
+            notebook_path: ../notebooks/04_quality_audit/01_reconciliation_checks.py
+            base_parameters:
+              env: dev
+
+    fintrust_exchange_rates:
+      name: fintrust_exchange_rates
+      tasks:
+        - task_key: exchange_rates_autoloader_to_bronze
+          notebook_task:
+            notebook_path: ../notebooks/01_loaders/00_autoloader_generic.py
+            base_parameters:
+              env: dev
+              source_name: exchange_rates
+
+        - task_key: exchange_rates_to_silver
+          depends_on:
+            - task_key: exchange_rates_autoloader_to_bronze
+          notebook_task:
+            notebook_path: ../notebooks/02_transform_silver/03_exchange_rates_to_silver.py
+            base_parameters:
+              env: dev
+
+    fintrust_gold_reporting:
+      name: fintrust_gold_reporting
+      tasks:
+        - task_key: transactions_enriched
+          notebook_task:
+            notebook_path: ../notebooks/03_transform_gold/01_transactions_enriched.py
+            base_parameters:
+              env: dev
+
+        - task_key: daily_transaction_summary
+          depends_on:
+            - task_key: transactions_enriched
+          notebook_task:
+            notebook_path: ../notebooks/03_transform_gold/02_daily_transaction_summary.py
+            base_parameters:
+              env: dev
+
+        - task_key: fraud_risk_summary
+          depends_on:
+            - task_key: daily_transaction_summary
+          notebook_task:
+            notebook_path: ../notebooks/03_transform_gold/03_fraud_risk_summary.py
+            base_parameters:
+              env: dev

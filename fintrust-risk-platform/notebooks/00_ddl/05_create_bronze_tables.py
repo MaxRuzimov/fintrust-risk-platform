@@ -1,10 +1,16 @@
 # Databricks notebook source
+from src.common.config import load_config, table_name
 
-catalog = "dbw_fintrust_platform_dev"
-bronze_schema = "bronze"
+dbutils.widgets.text("env", "dev")
+env = dbutils.widgets.get("env")
+
+config = load_config(env)
+transactions_raw   = table_name(config, "bronze", "transactions_raw")
+customers_raw      = table_name(config, "bronze", "customers_raw")
+exchange_rates_raw = table_name(config, "bronze", "exchange_rates_raw")
 
 spark.sql(f"""
-CREATE TABLE IF NOT EXISTS `{catalog}`.`{bronze_schema}`.`transactions_raw` (
+CREATE TABLE IF NOT EXISTS {transactions_raw} (
     transaction_id STRING,
     customer_id STRING,
     card_id STRING,
@@ -21,7 +27,7 @@ USING DELTA
 """)
 
 spark.sql(f"""
-CREATE TABLE IF NOT EXISTS `{catalog}`.`{bronze_schema}`.`customers_raw` (
+CREATE TABLE IF NOT EXISTS {customers_raw} (
     customer_id STRING,
     customer_name STRING,
     customer_country STRING,
@@ -36,7 +42,7 @@ USING DELTA
 """)
 
 spark.sql(f"""
-CREATE TABLE IF NOT EXISTS `{catalog}`.`{bronze_schema}`.`exchange_rates_raw` (
+CREATE TABLE IF NOT EXISTS {exchange_rates_raw} (
     currency STRING,
     rate_date STRING,
     rate_to_cad STRING,
@@ -47,4 +53,4 @@ CREATE TABLE IF NOT EXISTS `{catalog}`.`{bronze_schema}`.`exchange_rates_raw` (
 USING DELTA
 """)
 
-print(f"Bronze tables created in catalog: {catalog}")
+print(f"Bronze tables created in catalog: {config['catalog']}")

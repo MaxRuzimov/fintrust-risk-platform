@@ -1,82 +1,52 @@
 # Databricks notebook source
+import uuid
+from datetime import datetime, timezone
+from src.common.config import load_config, table_name
+from src.common.cdc import merge_type2
+from src.common.reconciliation import write_reconciliation_result
+from src.common.monitoring import write_pipeline_health
 
-catalog      = "dbw_fintrust_platform_dev"
-source_table = f"`{catalog}`.`bronze`.`customers_raw`"
-target_table = f"`{catalog}`.`silver`.`customers_scd2`"
+dbutils.widgets.text("env", "dev")
+env = dbutils.widgets.get("env")
 
-spark.sql(f"""
-CREATE OR REPLACE TEMP VIEW customers_stage AS
-SELECT
-    customer_id,
-    customer_name,
-    customer_country,
-    customer_risk_tier,
-    kyc_status,
-    CAST(effective_date AS DATE) AS effective_date
-FROM {source_table}
-WHERE customer_id IS NOT NULL
-""")
+config = load_config(env)
+source_table = table_name(config, "bronze", "customers_raw")
+target_table = table_name(config, "silver", "customers_scd2")
+recon_table  = table_name(config, "audit", "reconciliation_results")
+health_table = table_name(config, "audit", "pipeline_health")
 
-spark.sql(f"""
-MERGE INTO {target_table} AS target
-USING customers_stage AS source
-ON target.customer_id = source.customer_id
-AND target.is_current = true
-WHEN MATCHED AND (
-       target.customer_name <> source.customer_name
-    OR target.customer_country <> source.customer_country
-    OR target.customer_risk_tier <> source.customer_risk_tier
-    OR target.kyc_status <> source.kyc_status
-)
-THEN UPDATE SET
-    target.valid_to = source.effective_date,
-    target.is_current = false,
-    target.updated_at = current_timestamp()
+run_id = str(uuid.uuid4())
+start_time = datetime.now(timezone.utc)
 
-WHEN NOT MATCHED THEN INSERT (
-    customer_id,
-    customer_name,
-    customer_country,
-    customer_risk_tier,
-    kyc_status,
-    valid_from,
-    valid_to,
-    is_current,
-    created_at,
-    updated_at
-)
-VALUES (
-    source.customer_id,
-    source.customer_name,
-    source.customer_country,
-    source.customer_risk_tier,
-    source.kyc_status,
-    source.effective_date,
-    NULL,
-    true,
-    current_timestamp(),
-    current_timestamp()
-)
-""")
+try:
+    stage_df = spark.sql(f"""
+        SELECT
+            customer_id,
+            customer_name,
+            customer_country,
+            customer_risk_tier,
+            kyc_status,
+            CAST(effective_date AS DATE) AS effective_date
+        FROM {source_table}
+        WHERE customer_id IS NOT NULL
+    """)
 
-spark.sql(f"""
-INSERT INTO {target_table}
-SELECT
-    source.customer_id,
-    source.customer_name,
-    source.customer_country,
-    source.customer_risk_tier,
-    source.kyc_status,
-    source.effective_date AS valid_from,
-    NULL AS valid_to,
-    true AS is_current,
-    current_timestamp() AS created_at,
-    current_timestamp() AS updated_at
-FROM customers_stage source
-LEFT JOIN {target_table} target
-    ON source.customer_id = target.customer_id
-   AND target.is_current = true
-WHERE target.customer_id IS NULL
-""")
+    merge_type2(
+        spark=spark,
+        source_df=stage_df,
+        target_table=target_table,
+        key_columns=["customer_id"],
+        tracked_columns=["customer_name", "customer_country", "customer_risk_tier", "kyc_status"],
+        effective_date_col="effective_date",
+    )
+
+    source_count = spark.sql(f"SELECT COUNT(*) FROM {source_table}").collect()[0][0]
+    target_count = spark.sql(f"SELECT COUNT(*) FROM {target_table} WHERE is_current = true").collect()[0][0]
+
+    write_reconciliation_result(spark, recon_table, "customers_scd2", "bronze_to_silver", source_count, target_count)
+    write_pipeline_health(spark, health_table, "customers_scd2", "silver", run_id, "SUCCESS", start_time, datetime.now(timezone.utc), records_processed=target_count)
+except Exception as e:
+    write_pipeline_health(spark, health_table, "customers_scd2", "silver", run_id, "FAILED", start_time, datetime.now(timezone.utc), error_message=str(e))
+    raise
 
 print(f"Applied SCD2 merge from {source_table} into {target_table}")

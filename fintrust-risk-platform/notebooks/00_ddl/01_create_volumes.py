@@ -1,8 +1,13 @@
 # Databricks notebook source
+from src.common.config import load_config
 
-catalog = "dbw_fintrust_platform_dev"
-reference_schema = "reference"
-audit_schema = "audit"
+dbutils.widgets.text("env", "dev")
+env = dbutils.widgets.get("env")
+
+config = load_config(env)
+catalog          = config["catalog"]
+reference_schema = config["schemas"]["reference"]
+audit_schema     = config["schemas"]["audit"]
 
 spark.sql(f"CREATE VOLUME IF NOT EXISTS `{catalog}`.`{reference_schema}`.`landing`")
 spark.sql(f"CREATE VOLUME IF NOT EXISTS `{catalog}`.`{reference_schema}`.`archive`")

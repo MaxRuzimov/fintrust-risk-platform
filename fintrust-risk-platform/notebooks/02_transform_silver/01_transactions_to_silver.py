@@ -1,34 +1,16 @@
 # Databricks notebook source
+from pyspark.sql.functions import col, current_timestamp, to_timestamp, upper, trim
+from src.common.config import load_config, table_name, checkpoint_path
 
-from pyspark.sql.functions import (
-    col,
-    current_timestamp,
-    to_timestamp,
-    upper,
-    trim
-)
+dbutils.widgets.text("env", "dev")
+env = dbutils.widgets.get("env")
 
-# ------------------------------------------------------------------
-# Configuration
-# ------------------------------------------------------------------
+config = load_config(env)
+source_table = table_name(config, "bronze", "transactions_raw")
+target_table = table_name(config, "silver", "transactions")
+checkpoint   = checkpoint_path(config, "silver_transactions")
 
-catalog      = "dbw_fintrust_platform_dev"
-source_table = f"`{catalog}`.`bronze`.`transactions_raw`"
-target_table = f"`{catalog}`.`silver`.`transactions`"
-checkpoint   = "/Volumes/dbw_fintrust_platform_dev/audit/checkpoints/silver_transactions"
-
-# ------------------------------------------------------------------
-# Read Bronze Stream
-# ------------------------------------------------------------------
-
-bronze_df = (
-    spark.readStream
-    .table(source_table)
-)
-
-# ------------------------------------------------------------------
-# Clean and Standardize
-# ------------------------------------------------------------------
+bronze_df = spark.readStream.table(source_table)
 
 clean_df = (
     bronze_df
@@ -37,10 +19,6 @@ clean_df = (
     .withColumn("transaction_status", upper(trim(col("transaction_status"))))
     .withColumn("transaction_timestamp", to_timestamp(col("transaction_timestamp")))
 )
-
-# ------------------------------------------------------------------
-# Valid Records
-# ------------------------------------------------------------------
 
 valid_df = (
     clean_df
@@ -52,10 +30,6 @@ valid_df = (
     .filter(col("transaction_timestamp").isNotNull())
 )
 
-# ------------------------------------------------------------------
-# Deduplicate and Write Silver
-# ------------------------------------------------------------------
-
 silver_df = (
     valid_df
     .withWatermark("transaction_timestamp", "30 minutes")
@@ -64,8 +38,7 @@ silver_df = (
 )
 
 query = (
-    silver_df
-    .writeStream
+    silver_df.writeStream
     .format("delta")
     .outputMode("append")
     .option("checkpointLocation", checkpoint)

@@ -1,10 +1,16 @@
 # Databricks notebook source
+from src.common.config import load_config, table_name
 
-catalog = "dbw_fintrust_platform_dev"
-gold_schema = "gold"
+dbutils.widgets.text("env", "dev")
+env = dbutils.widgets.get("env")
+
+config = load_config(env)
+transactions_enriched     = table_name(config, "gold", "transactions_enriched")
+daily_transaction_summary = table_name(config, "gold", "daily_transaction_summary")
+fraud_risk_summary        = table_name(config, "gold", "fraud_risk_summary")
 
 spark.sql(f"""
-CREATE TABLE IF NOT EXISTS `{catalog}`.`{gold_schema}`.`transactions_enriched` (
+CREATE TABLE IF NOT EXISTS {transactions_enriched} (
     transaction_id STRING,
     customer_id STRING,
     card_id STRING,
@@ -24,7 +30,7 @@ USING DELTA
 """)
 
 spark.sql(f"""
-CREATE TABLE IF NOT EXISTS `{catalog}`.`{gold_schema}`.`daily_transaction_summary` (
+CREATE TABLE IF NOT EXISTS {daily_transaction_summary} (
     transaction_date DATE,
     currency STRING,
     transaction_count BIGINT,
@@ -36,7 +42,7 @@ USING DELTA
 """)
 
 spark.sql(f"""
-CREATE TABLE IF NOT EXISTS `{catalog}`.`{gold_schema}`.`fraud_risk_summary` (
+CREATE TABLE IF NOT EXISTS {fraud_risk_summary} (
     transaction_date DATE,
     risk_level STRING,
     transaction_count BIGINT,
@@ -46,4 +52,4 @@ CREATE TABLE IF NOT EXISTS `{catalog}`.`{gold_schema}`.`fraud_risk_summary` (
 USING DELTA
 """)
 
-print(f"Gold tables created in catalog: {catalog}")
+print(f"Gold tables created in catalog: {config['catalog']}")

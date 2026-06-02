@@ -6,9 +6,6 @@ Task 1:
 Task 2:
 02_transform_silver/01_transactions_to_silver.py
 
-Task 3:
-02_transform_silver/02_transactions_quarantine.py
-
 Workflow: fintrust_customer_batch
 
 Task 1:

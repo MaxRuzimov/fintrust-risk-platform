@@ -1,0 +1,61 @@
+customers:
+  source_type: autoloader
+  source_config_key: customers_file
+  target_table: bronze.customers_raw
+  quarantine_table: quarantine.invalid_customers
+  contract: CUSTOMERS_CONTRACT
+  required_columns:
+    - customer_id
+    - customer_name
+    - customer_country
+    - customer_risk_tier
+    - kyc_status
+    - effective_date
+  schema_columns:
+    - customer_id
+    - customer_name
+    - customer_country
+    - customer_risk_tier
+    - kyc_status
+    - effective_date
+
+transactions:
+  source_type: eventhub
+  source_config_key: transactions_stream
+  target_table: bronze.transactions_raw
+  quarantine_table: quarantine.invalid_transactions
+  contract: TRANSACTIONS_CONTRACT
+  required_columns:
+    - transaction_id
+    - customer_id
+    - card_id
+    - merchant_id
+    - amount
+    - currency
+    - transaction_timestamp
+    - channel
+    - transaction_status
+  domain_rules:
+    - column: amount
+      op: gt
+      value: 0
+      error: INVALID_AMOUNT
+    - column: currency
+      op: isin
+      values: [CAD, USD, EUR, GBP]
+      error: INVALID_CURRENCY
+
+exchange_rates:
+  source_type: autoloader
+  source_config_key: exchange_rates_file
+  target_table: bronze.exchange_rates_raw
+  quarantine_table: quarantine.invalid_exchange_rates
+  contract: EXCHANGE_RATES_CONTRACT
+  required_columns:
+    - currency
+    - rate_date
+    - rate_to_cad
+  schema_columns:
+    - currency
+    - rate_date
+    - rate_to_cad

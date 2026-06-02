@@ -1,10 +1,16 @@
 # Databricks notebook source
+from src.common.config import load_config, table_name
 
-catalog = "dbw_fintrust_platform_dev"
-silver_schema = "silver"
+dbutils.widgets.text("env", "dev")
+env = dbutils.widgets.get("env")
+
+config = load_config(env)
+customers_scd2 = table_name(config, "silver", "customers_scd2")
+exchange_rates = table_name(config, "silver", "exchange_rates")
+transactions   = table_name(config, "silver", "transactions")
 
 spark.sql(f"""
-CREATE TABLE IF NOT EXISTS `{catalog}`.`{silver_schema}`.`customers_scd2` (
+CREATE TABLE IF NOT EXISTS {customers_scd2} (
     customer_id STRING,
     customer_name STRING,
     customer_country STRING,
@@ -20,7 +26,7 @@ USING DELTA
 """)
 
 spark.sql(f"""
-CREATE TABLE IF NOT EXISTS `{catalog}`.`{silver_schema}`.`exchange_rates` (
+CREATE TABLE IF NOT EXISTS {exchange_rates} (
     currency STRING,
     rate_date DATE,
     rate_to_cad DOUBLE,
@@ -30,7 +36,7 @@ USING DELTA
 """)
 
 spark.sql(f"""
-CREATE TABLE IF NOT EXISTS `{catalog}`.`{silver_schema}`.`transactions` (
+CREATE TABLE IF NOT EXISTS {transactions} (
     transaction_id STRING,
     customer_id STRING,
     card_id STRING,
@@ -47,4 +53,4 @@ CREATE TABLE IF NOT EXISTS `{catalog}`.`{silver_schema}`.`transactions` (
 USING DELTA
 """)
 
-print(f"Silver tables created in catalog: {catalog}")
+print(f"Silver tables created in catalog: {config['catalog']}")

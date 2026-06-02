@@ -1,8 +1,12 @@
 # Databricks notebook source
+from src.common.config import load_config
 
-catalog = "dbw_fintrust_platform_dev"
+dbutils.widgets.text("env", "dev")
+env = dbutils.widgets.get("env")
 
-schemas = ["bronze", "silver", "gold", "audit", "quarantine", "reference", "ml_features"]
+config = load_config(env)
+catalog = config["catalog"]
+schemas = list(config["schemas"].values())
 
 for schema in schemas:
     spark.sql(f"CREATE SCHEMA IF NOT EXISTS `{catalog}`.`{schema}`")

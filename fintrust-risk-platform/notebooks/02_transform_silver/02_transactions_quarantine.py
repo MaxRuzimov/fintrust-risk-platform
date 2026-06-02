@@ -1,20 +1,14 @@
 # Databricks notebook source
+from pyspark.sql.functions import col, current_timestamp, to_timestamp, upper, trim, lit, concat_ws, when
+from src.common.config import load_config, table_name, checkpoint_path
 
-from pyspark.sql.functions import (
-    col,
-    current_timestamp,
-    to_timestamp,
-    upper,
-    trim,
-    lit,
-    concat_ws,
-    when
-)
+dbutils.widgets.text("env", "dev")
+env = dbutils.widgets.get("env")
 
-catalog      = "dbw_fintrust_platform_dev"
-source_table = f"`{catalog}`.`bronze`.`transactions_raw`"
-target_table = f"`{catalog}`.`quarantine`.`invalid_transactions`"
-checkpoint   = "/Volumes/dbw_fintrust_platform_dev/audit/checkpoints/quarantine_invalid_transactions"
+config = load_config(env)
+source_table = table_name(config, "bronze", "transactions_raw")
+target_table = table_name(config, "quarantine", "invalid_transactions")
+checkpoint   = checkpoint_path(config, "quarantine_invalid_transactions")
 
 bronze_df = spark.readStream.table(source_table)
 

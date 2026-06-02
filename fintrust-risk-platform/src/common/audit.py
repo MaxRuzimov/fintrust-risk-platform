@@ -16,7 +16,7 @@ def write_audit_log(
     Write pipeline execution metadata into audit.pipeline_run_log.
     """
 
-    audit_table = f"{catalog}.audit.pipeline_run_log"
+    audit_table = f"{catalog}.audit.batch_load_history"
 
     audit_data = [{
         "pipeline_name": pipeline_name,

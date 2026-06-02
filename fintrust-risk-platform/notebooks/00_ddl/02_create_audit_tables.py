@@ -1,10 +1,14 @@
 # Databricks notebook source
+from src.common.config import load_config, table_name
 
-catalog = "dbw_fintrust_platform_dev"
-audit_schema = "audit"
+dbutils.widgets.text("env", "dev")
+env = dbutils.widgets.get("env")
+
+config = load_config(env)
+batch_load_history = table_name(config, "audit", "batch_load_history")
 
 spark.sql(f"""
-CREATE TABLE IF NOT EXISTS `{catalog}`.`{audit_schema}`.`batch_load_history` (
+CREATE TABLE IF NOT EXISTS {batch_load_history} (
     load_id STRING,
     pipeline_name STRING,
     source_name STRING,
@@ -18,18 +22,4 @@ CREATE TABLE IF NOT EXISTS `{catalog}`.`{audit_schema}`.`batch_load_history` (
 USING DELTA
 """)
 
-spark.sql(f"""
-CREATE TABLE IF NOT EXISTS `{catalog}`.`{audit_schema}`.`reconciliation_results` (
-    check_id STRING,
-    pipeline_name STRING,
-    source_name STRING,
-    source_count BIGINT,
-    target_count BIGINT,
-    difference BIGINT,
-    status STRING,
-    check_timestamp TIMESTAMP
-)
-USING DELTA
-""")
-
-print(f"Audit tables created in catalog: {catalog}")
+print(f"Audit tables created in catalog: {config['catalog']}")
