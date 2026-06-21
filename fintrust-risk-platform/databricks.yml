@@ -1,12 +1,64 @@
+# databricks.yml  --  bundle root
+#
+# Phase 1 (1.10): bundle-wide permissions live HERE as a top-level key, not in
+# an included resources file. `permissions:` is a sibling of bundle/include/
+# targets -- it is NOT a `resources:` entry, so it cannot live in jobs.yml-style
+# files. resources/permissions.yml has been emptied; this is its real home.
+#
+# Phase 7 preview (7.1): a `prod` target is stubbed below so the multi-env
+# structure exists. Removing the hardcoded cluster id in 1.7 is what makes this
+# possible -- the same jobs.yml deploys to any target.
+
 bundle:
   name: fintrust-risk-platform
 
 include:
-  - resources/*.yml
-  
+  - resources/*.yml          # picks up jobs.yml + cluster_policies.yml
+
+# -- Bundle-wide default permissions (concept 1.10) ---------------------------
+# RBAC by persona, granted to GROUPS / the CI/CD service principal, never to
+# individuals. Controls access to the JOB objects only -- table access is
+# Unity Catalog's job (concept 2.3).
+#
+# NOTE: these groups + service principal must already EXIST in the workspace;
+# the bundle grants to them, it does not create them. Rename to match the
+# groups you actually have, or create groups with these names.
+permissions:
+  - group_name: fintrust-data-engineers      # pipeline owners
+    level: CAN_MANAGE
+  - service_principal_name: fintrust-cicd-sp # automated deploys (concept 7.3)
+    level: CAN_MANAGE
+  - group_name: fintrust-analysts            # operators: re-run, not edit
+    level: CAN_MANAGE_RUN
+  - group_name: fintrust-stakeholders        # read-only visibility
+    level: CAN_VIEW
+
 targets:
+  # -- DEV: your personal sandbox --------------------------------------------
+  # mode: development relaxes some enforcement and prefixes resource names with
+  # your username -- so permissions may not be strictly enforced here. That is
+  # expected; they bite in production mode.
   dev:
     mode: development
     default: true
     workspace:
       host: https://adb-7405612030947054.14.azuredatabricks.net
+
+  # -- PROD: stubbed for Phase 7 (7.1) ---------------------------------------
+  # mode: production enforces permissions strictly and does NOT prefix names.
+  # Fill in the real prod workspace host before using. You will also likely add
+  # per-target cluster sizing overrides here later (bigger prod clusters)
+  # without touching jobs.yml -- that is the payoff of removing the hardcoded
+  # cluster id in 1.7.
+  prod:
+    mode: production
+    workspace:
+      host: https://<your-prod-workspace>.azuredatabricks.net   # <-- FILL IN
+    # Example of a future per-target override (commented until needed):
+    # resources:
+    #   jobs:
+    #     fintrust_gold_reporting:
+    #       job_clusters:
+    #         - job_cluster_key: batch_cluster
+    #           new_cluster:
+    #             autoscale: {min_workers: 4, max_workers: 12}

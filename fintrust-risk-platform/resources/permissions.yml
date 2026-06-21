@@ -1,0 +1,38 @@
+# resources/permissions.yml  --  concept 1.10
+#
+# WHO can run / edit / view the jobs. RBAC by persona, granted to GROUPS (and
+# the CI/CD service principal), never to individuals -- so access survives
+# people joining and leaving the team.
+#
+# Levels:
+#   CAN_MANAGE      -- edit, run, delete, manage permissions (pipeline OWNERS)
+#   CAN_MANAGE_RUN  -- trigger/cancel runs, but NOT edit or delete (OPERATORS)
+#   CAN_VIEW        -- read-only: see job, runs, logs (STAKEHOLDERS)
+#
+# IMPORTANT: this controls access to the JOB objects only -- not to the data in
+# the tables. Table access is Unity Catalog's job (GRANT statements, concept 2.3).
+#
+# These are applied as a bundle-wide DEFAULT via the top-level `permissions:`
+# key, so every job the bundle deploys inherits them. Per-job overrides are
+# possible by putting a `permissions:` block inside an individual job.
+
+# --- Bundle-wide default permissions (goes at the TOP LEVEL of databricks.yml,
+#     or in a resources file merged into it) ---
+permissions:
+  # Data engineers OWN the pipelines: full control.
+  - group_name: fintrust-data-engineers
+    level: CAN_MANAGE
+
+  # The CI/CD service principal deploys and updates jobs: needs full control.
+  # (A service principal is a non-human identity for automation -- concept 7.3.)
+  - service_principal_name: fintrust-cicd-sp
+    level: CAN_MANAGE
+
+  # Analysts/operators can re-run jobs (e.g. rerun a failed nightly load) but
+  # must not edit or delete them.
+  - group_name: fintrust-analysts
+    level: CAN_MANAGE_RUN
+
+  # Leads/stakeholders get read-only visibility into runs and logs.
+  - group_name: fintrust-stakeholders
+    level: CAN_VIEW

@@ -1,0 +1,112 @@
+# resources/cluster_policies.yml  —  concept 1.9
+#
+# Two policies that turn the cluster choices you made by hand in 1.7 into
+# guardrails the platform enforces on everyone:
+#
+#   batch_policy     -> forces SPOT + autoscale (cost). Used by batch jobs.
+#   streaming_policy -> forces ON_DEMAND + fixed workers (reliability).
+#
+# Each rule constrains one cluster setting:
+#   fixed     = locked, nobody can change it
+#   allowlist = only these values permitted
+#   range     = min/max bound
+#   defaultValue = pre-filled, user may still change within other limits
+#
+# A job_cluster references a policy via policy_id. At cluster-creation time
+# Databricks checks the spec against the policy; a violation fails the run.
+
+resources:
+  cluster_policies:
+
+    # ── BATCH POLICY ──────────────────────────────────────────────────────────
+    # Cost-optimised: spot machines, autoscaling, must auto-terminate when idle.
+    batch_policy:
+      name: fintrust_batch_policy
+      definition:
+        # Only approved LTS runtimes — no untested bleeding-edge in production.
+        spark_version:
+          type: allowlist
+          values: ["15.4.x-scala2.12"]
+          defaultValue: "15.4.x-scala2.12"
+
+        # Only these two node sizes selectable — blocks the 64-core monster.
+        node_type_id:
+          type: allowlist
+          values: ["Standard_D4s_v3", "Standard_D8s_v3"]
+          defaultValue: "Standard_D4s_v3"
+
+        # FORCE spot (with fallback). Encodes the 1.7 rule: batch tolerates
+        # eviction, so always take the discount. Nobody can pick on-demand.
+        azure_attributes.availability:
+          type: fixed
+          value: "SPOT_WITH_FALLBACK_AZURE"
+
+        # Cap autoscale so a typo can't request 200 workers.
+        autoscale.min_workers:
+          type: range
+          minValue: 1
+          maxValue: 4
+          defaultValue: 1
+        autoscale.max_workers:
+          type: range
+          minValue: 2
+          maxValue: 8
+          defaultValue: 4
+
+        # REQUIRE auto-termination — an idle batch cluster must shut itself off
+        # so it stops billing. (Streaming clusters override this; see below.)
+        autotermination_minutes:
+          type: range
+          minValue: 10
+          maxValue: 60
+          defaultValue: 30
+
+        # FORCE a cost-centre tag so finance can attribute the bill (FinOps).
+        custom_tags.cost_center:
+          type: fixed
+          value: "data-platform"
+        custom_tags.workload:
+          type: fixed
+          value: "batch"
+
+    # ── STREAMING POLICY ──────────────────────────────────────────────────────
+    # Reliability-optimised: on-demand machines, fixed workers, no auto-terminate
+    # (streams run continuously and must not be evicted or scaled mid-flight).
+    streaming_policy:
+      name: fintrust_streaming_policy
+      definition:
+        spark_version:
+          type: allowlist
+          values: ["15.4.x-scala2.12"]
+          defaultValue: "15.4.x-scala2.12"
+
+        node_type_id:
+          type: allowlist
+          values: ["Standard_D4s_v3", "Standard_D8s_v3"]
+          defaultValue: "Standard_D4s_v3"
+
+        # FORCE on-demand. Encodes the 1.7 rule: a long-running stateful stream
+        # can't tolerate spot eviction. Locked — no one can switch it to spot.
+        azure_attributes.availability:
+          type: fixed
+          value: "ON_DEMAND_AZURE"
+
+        # FORCE fixed workers (not autoscale) — autoscaling a stateful stream
+        # shuffles its state and disrupts processing. Bounded, sensible default.
+        num_workers:
+          type: range
+          minValue: 1
+          maxValue: 6
+          defaultValue: 2
+
+        # Streams run forever, so they must NOT auto-terminate. Lock it off.
+        autotermination_minutes:
+          type: fixed
+          value: 0
+
+        custom_tags.cost_center:
+          type: fixed
+          value: "data-platform"
+        custom_tags.workload:
+          type: fixed
+          value: "streaming"
