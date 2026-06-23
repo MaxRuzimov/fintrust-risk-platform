@@ -59,3 +59,22 @@ exchange_rates:
     - currency
     - rate_date
     - rate_to_cad
+
+merchants:
+  source_type: autoloader
+  source_config_key: merchants_file
+  target_table: bronze.merchants_raw
+  quarantine_table: quarantine.invalid_merchants
+  contract: MERCHANTS_CONTRACT
+  required_columns:
+    - merchant_id
+    - merchant_name
+    - merchant_category
+    - merchant_country
+  schema_columns:
+    - merchant_id
+    - merchant_name
+    - merchant_category
+    - merchant_country
+    - risk_category
+    - is_high_risk_merchant

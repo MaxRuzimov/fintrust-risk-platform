@@ -41,3 +41,15 @@ FRAUD_ALERTS_CONTRACT = {
     "alert_severity": "string",
     "alert_timestamp": "timestamp",
 }
+
+MERCHANTS_CONTRACT = {
+    "merchant_id": "string",
+    "merchant_name": "string",
+    "merchant_category": "string",
+    "merchant_country": "string",
+    "risk_category": "string",
+    "is_high_risk_merchant": "string",
+    "source_file": "string",
+    "ingestion_timestamp": "timestamp",
+    "load_id": "string",
+}

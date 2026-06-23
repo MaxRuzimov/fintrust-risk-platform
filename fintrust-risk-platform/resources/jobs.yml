@@ -1,23 +1,45 @@
-# resources/jobs.yml  —  1.7 + 1.9 final
+# resources/jobs.yml  —  full platform, 7 isolated jobs
 #
-# 1.7: each job defines its own job-cluster (born-runs-dies), no hardcoded
-#      existing_cluster_id. Two profiles:
-#        streaming_cluster : ON_DEMAND + fixed workers  (reliability)
-#        batch_cluster     : SPOT w/ fallback + autoscale (cost)
-# 1.9: each new_cluster references the matching cluster POLICY via policy_id.
-#        streaming_cluster -> streaming_policy (forces ON_DEMAND, fixed workers)
-#        batch_cluster     -> batch_policy     (forces SPOT, autoscale, autoterm)
-#
-# Rule of thumb: job_cluster_key name, the settings, and the policy_id must all
-# agree. streaming_cluster + ON_DEMAND must point at streaming_policy — pointing
-# it at batch_policy fails, because batch_policy locks availability to SPOT.
+# One job PER SOURCE (isolation), a gold job that orchestrates them via
+# run_job_task, and a publish job. Clusters/policies from 1.7 + 1.9.
+# DDL (00_ddl notebooks) is assumed already run once; these are the recurring
+# data jobs.
 
 resources:
   jobs:
 
-    # -- BATCH: customer master ------------------------------------------------
-    fintrust_customer_master:
-      name: fintrust_customer_master
+    # == 1. TRANSACTIONS (streaming) =========================================
+    fintrust_transactions:
+      name: fintrust_transactions
+      max_concurrent_runs: 1
+      job_clusters:
+        - job_cluster_key: streaming_cluster
+          new_cluster:
+            policy_id: ${resources.cluster_policies.streaming_policy.id}
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: "Standard_D4s_v3"
+            num_workers: 2
+            azure_attributes:
+              availability: ON_DEMAND_AZURE
+      tasks:
+        - task_key: transactions_to_bronze
+          job_cluster_key: streaming_cluster
+          notebook_task:
+            notebook_path: ../notebooks/01_loaders/01_transactions_eventhub_to_bronze.py
+            base_parameters:
+              env: dev
+        - task_key: transactions_to_silver
+          depends_on:
+            - task_key: transactions_to_bronze
+          job_cluster_key: streaming_cluster
+          notebook_task:
+            notebook_path: ../notebooks/02_transform_silver/01_transactions_to_silver.py
+            base_parameters:
+              env: dev
+
+    # == 2. CUSTOMERS (batch) ================================================
+    fintrust_customers:
+      name: fintrust_customers
       job_clusters:
         - job_cluster_key: batch_cluster
           new_cluster:
@@ -30,27 +52,54 @@ resources:
             azure_attributes:
               availability: SPOT_WITH_FALLBACK_AZURE
       tasks:
-        - task_key: customers_autoloader_to_bronze
+        - task_key: customers_to_bronze
           job_cluster_key: batch_cluster
           notebook_task:
             notebook_path: ../notebooks/01_loaders/00_autoloader_generic.py
-            base_parameters: {env: dev, source_name: customers}
-
-        - task_key: customers_scd2
-          depends_on: [{task_key: customers_autoloader_to_bronze}]
+            base_parameters:
+              env: dev
+              source_name: customers
+        - task_key: customers_to_silver
+          depends_on:
+            - task_key: customers_to_bronze
           job_cluster_key: batch_cluster
           notebook_task:
             notebook_path: ../notebooks/02_transform_silver/02_customers_scd2.py
-            base_parameters: {env: dev}
+            base_parameters:
+              env: dev
 
-        - task_key: reconciliation_checks
-          depends_on: [{task_key: customers_scd2}]
+    # == 3. MERCHANTS (batch) ================================================
+    fintrust_merchants:
+      name: fintrust_merchants
+      job_clusters:
+        - job_cluster_key: batch_cluster
+          new_cluster:
+            policy_id: ${resources.cluster_policies.batch_policy.id}
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: "Standard_D4s_v3"
+            autoscale:
+              min_workers: 1
+              max_workers: 4
+            azure_attributes:
+              availability: SPOT_WITH_FALLBACK_AZURE
+      tasks:
+        - task_key: merchants_to_bronze
           job_cluster_key: batch_cluster
           notebook_task:
-            notebook_path: ../notebooks/04_quality_audit/01_reconciliation_checks.py
-            base_parameters: {env: dev}
+            notebook_path: ../notebooks/01_loaders/00_autoloader_generic.py
+            base_parameters:
+              env: dev
+              source_name: merchants
+        - task_key: merchants_to_silver
+          depends_on:
+            - task_key: merchants_to_bronze
+          job_cluster_key: batch_cluster
+          notebook_task:
+            notebook_path: ../notebooks/02_transform_silver/04_merchants_to_silver.py
+            base_parameters:
+              env: dev
 
-    # -- BATCH: exchange rates -------------------------------------------------
+    # == 4. EXCHANGE RATES (batch) ===========================================
     fintrust_exchange_rates:
       name: fintrust_exchange_rates
       job_clusters:
@@ -59,87 +108,59 @@ resources:
             policy_id: ${resources.cluster_policies.batch_policy.id}
             spark_version: "15.4.x-scala2.12"
             node_type_id: "Standard_D4s_v3"
-            autoscale: {min_workers: 1, max_workers: 4}
-            azure_attributes: {availability: SPOT_WITH_FALLBACK_AZURE}
+            autoscale:
+              min_workers: 1
+              max_workers: 4
+            azure_attributes:
+              availability: SPOT_WITH_FALLBACK_AZURE
       tasks:
-        - task_key: exchange_rates_autoloader_to_bronze
+        - task_key: exchange_rates_to_bronze
           job_cluster_key: batch_cluster
           notebook_task:
             notebook_path: ../notebooks/01_loaders/00_autoloader_generic.py
-            base_parameters: {env: dev, source_name: exchange_rates}
-
+            base_parameters:
+              env: dev
+              source_name: exchange_rates
         - task_key: exchange_rates_to_silver
-          depends_on: [{task_key: exchange_rates_autoloader_to_bronze}]
+          depends_on:
+            - task_key: exchange_rates_to_bronze
           job_cluster_key: batch_cluster
           notebook_task:
             notebook_path: ../notebooks/02_transform_silver/03_exchange_rates_to_silver.py
-            base_parameters: {env: dev}
+            base_parameters:
+              env: dev
 
-    # -- STREAMING: transactions (bronze + silver) -----------------------------
-    fintrust_streaming_transactions:
-      name: fintrust_streaming_transactions
-      max_concurrent_runs: 1
+    # == 5. FRAUD ALERTS (batch) =============================================
+    fintrust_fraud_alerts:
+      name: fintrust_fraud_alerts
       job_clusters:
-        - job_cluster_key: streaming_cluster
+        - job_cluster_key: batch_cluster
           new_cluster:
-            policy_id: ${resources.cluster_policies.streaming_policy.id}
+            policy_id: ${resources.cluster_policies.batch_policy.id}
             spark_version: "15.4.x-scala2.12"
             node_type_id: "Standard_D4s_v3"
-            num_workers: 2
+            autoscale:
+              min_workers: 1
+              max_workers: 4
             azure_attributes:
-              availability: ON_DEMAND_AZURE
-      tasks:
-        - task_key: transactions_eventhub_to_bronze
-          job_cluster_key: streaming_cluster
-          notebook_task:
-            notebook_path: ../notebooks/01_loaders/01_transactions_eventhub_to_bronze.py
-            base_parameters: {env: dev}
-
-        - task_key: transactions_to_silver
-          job_cluster_key: streaming_cluster
-          notebook_task:
-            notebook_path: ../notebooks/02_transform_silver/01_transactions_to_silver.py
-            base_parameters: {env: dev}
-
-    # -- STREAMING: fraud alerts -----------------------------------------------
-    fintrust_fraud_alerts_stream:
-      name: fintrust_fraud_alerts_stream
-      max_concurrent_runs: 1
-      job_clusters:
-        - job_cluster_key: streaming_cluster
-          new_cluster:
-            policy_id: ${resources.cluster_policies.streaming_policy.id}
-            spark_version: "15.4.x-scala2.12"
-            node_type_id: "Standard_D4s_v3"
-            num_workers: 2
-            azure_attributes: {availability: ON_DEMAND_AZURE}
+              availability: SPOT_WITH_FALLBACK_AZURE
       tasks:
         - task_key: fraud_alerts_to_bronze
-          job_cluster_key: streaming_cluster
+          job_cluster_key: batch_cluster
           notebook_task:
             notebook_path: ../notebooks/01_loaders/04_fraud_alerts_autoloader_to_bronze.py
-            base_parameters: {env: dev}
-
-    # -- STREAMING: transactions + fraud join (stateful, heavier) --------------
-    fintrust_transactions_fraud_stream:
-      name: fintrust_transactions_fraud_stream
-      max_concurrent_runs: 1
-      job_clusters:
-        - job_cluster_key: streaming_cluster
-          new_cluster:
-            policy_id: ${resources.cluster_policies.streaming_policy.id}
-            spark_version: "15.4.x-scala2.12"
-            node_type_id: "Standard_D8s_v3"
-            num_workers: 2
-            azure_attributes: {availability: ON_DEMAND_AZURE}
-      tasks:
-        - task_key: transactions_with_fraud_alerts
-          job_cluster_key: streaming_cluster
+            base_parameters:
+              env: dev
+        - task_key: fraud_alerts_to_silver
+          depends_on:
+            - task_key: fraud_alerts_to_bronze
+          job_cluster_key: batch_cluster
           notebook_task:
-            notebook_path: ../notebooks/03_transform_gold/04_transactions_with_fraud_alerts.py
-            base_parameters: {env: dev}
+            notebook_path: ../notebooks/02_transform_silver/05_fraud_alerts_to_silver.py
+            base_parameters:
+              env: dev
 
-    # -- BATCH: gold reporting -------------------------------------------------
+    # == 6. GOLD REPORTING (orchestrates sources, then transforms) ===========
     fintrust_gold_reporting:
       name: fintrust_gold_reporting
       job_clusters:
@@ -148,25 +169,104 @@ resources:
             policy_id: ${resources.cluster_policies.batch_policy.id}
             spark_version: "15.4.x-scala2.12"
             node_type_id: "Standard_D4s_v3"
-            autoscale: {min_workers: 2, max_workers: 6}
-            azure_attributes: {availability: SPOT_WITH_FALLBACK_AZURE}
+            autoscale:
+              min_workers: 2
+              max_workers: 6
+            azure_attributes:
+              availability: SPOT_WITH_FALLBACK_AZURE
       tasks:
+        # trigger source jobs first (cross-job dependencies)
+        - task_key: run_customers
+          run_job_task:
+            job_id: ${resources.jobs.fintrust_customers.id}
+        - task_key: run_merchants
+          run_job_task:
+            job_id: ${resources.jobs.fintrust_merchants.id}
+        - task_key: run_exchange_rates
+          run_job_task:
+            job_id: ${resources.jobs.fintrust_exchange_rates.id}
+        - task_key: run_fraud_alerts
+          run_job_task:
+            job_id: ${resources.jobs.fintrust_fraud_alerts.id}
+
+        # gold transforms
         - task_key: transactions_enriched
+          depends_on:
+            - task_key: run_exchange_rates
           job_cluster_key: batch_cluster
           notebook_task:
             notebook_path: ../notebooks/03_transform_gold/01_transactions_enriched.py
-            base_parameters: {env: dev}
-
+            base_parameters:
+              env: dev
         - task_key: daily_transaction_summary
-          depends_on: [{task_key: transactions_enriched}]
+          depends_on:
+            - task_key: transactions_enriched
           job_cluster_key: batch_cluster
           notebook_task:
             notebook_path: ../notebooks/03_transform_gold/02_daily_transaction_summary.py
-            base_parameters: {env: dev}
-
+            base_parameters:
+              env: dev
         - task_key: fraud_risk_summary
-          depends_on: [{task_key: daily_transaction_summary}]
+          depends_on:
+            - task_key: transactions_enriched
           job_cluster_key: batch_cluster
           notebook_task:
             notebook_path: ../notebooks/03_transform_gold/03_fraud_risk_summary.py
-            base_parameters: {env: dev}
+            base_parameters:
+              env: dev
+        - task_key: transactions_with_fraud_alerts
+          depends_on:
+            - task_key: transactions_enriched
+            - task_key: run_fraud_alerts
+          job_cluster_key: batch_cluster
+          notebook_task:
+            notebook_path: ../notebooks/03_transform_gold/04_transactions_with_fraud_alerts.py
+            base_parameters:
+              env: dev
+        - task_key: customer_risk_360
+          depends_on:
+            - task_key: run_customers
+            - task_key: run_fraud_alerts
+            - task_key: transactions_enriched
+          job_cluster_key: batch_cluster
+          notebook_task:
+            notebook_path: ../notebooks/03_transform_gold/05_customer_risk_360.py
+            base_parameters:
+              env: dev
+        - task_key: merchant_risk_summary
+          depends_on:
+            - task_key: run_merchants
+            - task_key: run_fraud_alerts
+            - task_key: transactions_enriched
+          job_cluster_key: batch_cluster
+          notebook_task:
+            notebook_path: ../notebooks/03_transform_gold/06_merchant_risk_summary.py
+            base_parameters:
+              env: dev
+
+    # == 7. PUBLISH (gold -> Snowflake) ======================================
+    fintrust_publish:
+      name: fintrust_publish
+      job_clusters:
+        - job_cluster_key: batch_cluster
+          new_cluster:
+            policy_id: ${resources.cluster_policies.batch_policy.id}
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: "Standard_D4s_v3"
+            autoscale:
+              min_workers: 1
+              max_workers: 4
+            azure_attributes:
+              availability: SPOT_WITH_FALLBACK_AZURE
+      tasks:
+        - task_key: run_gold
+          run_job_task:
+            job_id: ${resources.jobs.fintrust_gold_reporting.id}
+        - task_key: publish_to_snowflake
+          depends_on:
+            - task_key: run_gold
+          job_cluster_key: batch_cluster
+          notebook_task:
+            notebook_path: ../notebooks/05_publish/01_publish_gold_to_snowflake.py
+            base_parameters:
+              env: dev
