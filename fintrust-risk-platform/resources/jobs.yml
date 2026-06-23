@@ -15,7 +15,6 @@ resources:
       job_clusters:
         - job_cluster_key: streaming_cluster
           new_cluster:
-            policy_id: ${resources.cluster_policies.streaming_policy.id}
             spark_version: "15.4.x-scala2.12"
             node_type_id: "Standard_D4s_v3"
             num_workers: 2
@@ -43,7 +42,6 @@ resources:
       job_clusters:
         - job_cluster_key: batch_cluster
           new_cluster:
-            policy_id: ${resources.cluster_policies.batch_policy.id}
             spark_version: "15.4.x-scala2.12"
             node_type_id: "Standard_D4s_v3"
             autoscale:
@@ -74,7 +72,6 @@ resources:
       job_clusters:
         - job_cluster_key: batch_cluster
           new_cluster:
-            policy_id: ${resources.cluster_policies.batch_policy.id}
             spark_version: "15.4.x-scala2.12"
             node_type_id: "Standard_D4s_v3"
             autoscale:
@@ -105,7 +102,6 @@ resources:
       job_clusters:
         - job_cluster_key: batch_cluster
           new_cluster:
-            policy_id: ${resources.cluster_policies.batch_policy.id}
             spark_version: "15.4.x-scala2.12"
             node_type_id: "Standard_D4s_v3"
             autoscale:
@@ -136,7 +132,6 @@ resources:
       job_clusters:
         - job_cluster_key: batch_cluster
           new_cluster:
-            policy_id: ${resources.cluster_policies.batch_policy.id}
             spark_version: "15.4.x-scala2.12"
             node_type_id: "Standard_D4s_v3"
             autoscale:
@@ -166,7 +161,6 @@ resources:
       job_clusters:
         - job_cluster_key: batch_cluster
           new_cluster:
-            policy_id: ${resources.cluster_policies.batch_policy.id}
             spark_version: "15.4.x-scala2.12"
             node_type_id: "Standard_D4s_v3"
             autoscale:
@@ -250,7 +244,6 @@ resources:
       job_clusters:
         - job_cluster_key: batch_cluster
           new_cluster:
-            policy_id: ${resources.cluster_policies.batch_policy.id}
             spark_version: "15.4.x-scala2.12"
             node_type_id: "Standard_D4s_v3"
             autoscale:

@@ -13,7 +13,8 @@ bundle:
   name: fintrust-risk-platform
 
 include:
-  - resources/*.yml          # picks up jobs.yml + cluster_policies.yml
+  - resources/jobs.yml
+  - resources/permissions.yml
 
 # -- Bundle-wide default permissions (concept 1.10) ---------------------------
 # RBAC by persona, granted to GROUPS / the CI/CD service principal, never to
@@ -24,14 +25,8 @@ include:
 # the bundle grants to them, it does not create them. Rename to match the
 # groups you actually have, or create groups with these names.
 permissions:
-  - group_name: fintrust-data-engineers      # pipeline owners
+  - user_name: madatbek25@gmail.com
     level: CAN_MANAGE
-  - service_principal_name: fintrust-cicd-sp # automated deploys (concept 7.3)
-    level: CAN_MANAGE
-  - group_name: fintrust-analysts            # operators: re-run, not edit
-    level: CAN_MANAGE_RUN
-  - group_name: fintrust-stakeholders        # read-only visibility
-    level: CAN_VIEW
 
 targets:
   # -- DEV: your personal sandbox --------------------------------------------
